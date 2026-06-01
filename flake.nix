@@ -19,12 +19,10 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-        # pnpm2nix-nzbr might not have a .lib attrset
-        # It's likely a function that takes pkgs
-        pnpm2nix = pnpm2nix-nzbr;
+        # Inspect pnpm2nix-nzbr to find the correct builder
       in
       {
-        packages.feishin = pnpm2nix.buildPnpmPackage {
+        packages.feishin = pnpm2nix-nzbr.packages.${system}.pnpm2nix.buildPackage {
           inherit pkgs;
           src = ./.;
 
@@ -35,7 +33,7 @@
 
           buildPhase = ''
             export HOME=$TMPDIR
-            # Build using pnpm as configured by pnpm2nix
+            # Build using pnpm
             pnpm run build:remote
           '';
 
