@@ -19,27 +19,22 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
+        # The correct way is to use pkgs.callPackage or pass inputs to the function
+        mkPnpmPackage = pnpm2nix-nzbr.lib.mkPnpmPackage { inherit pkgs; };
       in
       {
-        packages.feishin = pnpm2nix-nzbr.packages.${system}.buildPnpmPackage {
-          inherit pkgs;
+        packages.feishin = mkPnpmPackage {
           src = ./.;
+          scriptFull = "pnpm run build:remote";
+          distDir = "out/remote";
 
           # Inject CA bundle for SSL verification
-          env = {
+          installEnv = {
             NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
           };
-
-          buildPhase = ''
-            export HOME=$TMPDIR
-            # Build using pnpm
-            pnpm run build:remote
-          '';
-
-          installPhase = ''
-            mkdir -p $out/share/feishin
-            cp -r out/remote/* $out/share/feishin/
-          '';
+          buildEnv = {
+            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+          };
         };
       }
     )
@@ -89,7 +84,7 @@
                     include ${pkgs.nginx}/conf/mime.types;
                     server {
                       listen ${cfg.host}:${toString cfg.port};
-                      root ${self.packages.${pkgs.system}.feishin}/share/feishin;
+                      root ${self.packages.${pkgs.system}.feishin};
                       index index.html;
                       location / {
                         try_files $uri $uri/ /index.html;
