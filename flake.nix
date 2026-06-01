@@ -31,9 +31,9 @@
             pkgs.pnpm_9
           ];
 
-          # Fix for "No lock file":
-          # Create a package-lock.json since npm needs it even if pnpm is used.
-          preConfigure = ''
+          # Force copy the lock file as package-lock.json
+          # before the npm-deps build starts.
+          preBuild = ''
             cp pnpm-lock.yaml package-lock.json
           '';
 
@@ -44,8 +44,6 @@
 
           buildPhase = ''
             export HOME=$TMPDIR
-            # Ensure lockfile exists for npm
-            [ -f package-lock.json ] || cp pnpm-lock.yaml package-lock.json
             npm install --frozen-lockfile
             npm run build:remote
           '';
