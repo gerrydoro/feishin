@@ -31,23 +31,23 @@
             pkgs.pnpm_9
           ];
 
-          # Fix for "No lock file" error:
-          # buildNpmPackage requires package-lock.json or npm-shrinkwrap.json
-          # We need to make sure one of these exists in the source directory
-          # before the build process starts.
-          # We can create a dummy package-lock.json if needed, but since we have
-          # pnpm-lock.yaml, we will just copy it.
-          postUnpack = ''
-            cp $sourceRoot/pnpm-lock.yaml $sourceRoot/package-lock.json
-          '';
+          # The issue is that buildNpmPackage expects the lock file
+          # to be present when fetching dependencies, which happens in a separate derivation
+          # We need to make sure the lockfile is copied before it looks for it.
+          # The npmDeps derivation doesn't run postUnpack.
+          # Let's try to copy the lock file as a fix in the root of the source during fetch.
 
-          # Inject CA bundle for SSL verification
+          # Let's try using preBuild instead of postUnpack,
+          # and ensure package-lock.json is present.
+
           env = {
             NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
           };
 
           buildPhase = ''
             export HOME=$TMPDIR
+            # Ensure lockfile exists for npm
+            [ -f package-lock.json ] || cp pnpm-lock.yaml package-lock.json
             npm install --frozen-lockfile
             npm run build:remote
           '';
