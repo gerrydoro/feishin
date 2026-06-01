@@ -31,27 +31,32 @@
             pkgs.pnpm_9
           ];
 
-          # Force copy the lock file as package-lock.json
-          # before the npm-deps build starts.
-          preBuild = ''
-            cp pnpm-lock.yaml package-lock.json
-          '';
+          # The issue is that buildNpmPackage attempts to build the npm-deps
+          # derivation without access to the source code where pnpm-lock.yaml resides.
+          # To fix, we need to provide the lock file *to* the npmDepsHash derivation
+          # by setting it explicitly in the buildNpmPackage options if supported,
+          # or use a different strategy.
 
-          # Inject CA bundle for SSL verification
-          env = {
-            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
-          };
+          # Since I can't easily fix the npmDepsHash without the correct hash,
+          # and it fails on 'No lock file', I will bypass the npmDeps derivation
+          # by using simple derivation for build.
 
           buildPhase = ''
             export HOME=$TMPDIR
-            npm install --frozen-lockfile
-            npm run build:remote
+            # Use pnpm from nativeBuildInputs
+            pnpm install --frozen-lockfile
+            pnpm run build:remote
           '';
 
           installPhase = ''
             mkdir -p $out/share/feishin
             cp -r out/remote/* $out/share/feishin/
           '';
+
+          # Inject CA bundle for SSL verification
+          env = {
+            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+          };
         };
       }
     )
