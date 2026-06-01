@@ -4,7 +4,6 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    pnpm2nix.url = "github:nix-community/pnpm2nix";
   };
 
   outputs =
@@ -12,29 +11,35 @@
       self,
       nixpkgs,
       flake-utils,
-      pnpm2nix,
       ...
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-        pnpm2nix = import pnpm2nix.inputs.pnpm2nix { inherit pkgs; };
       in
       {
-        packages.feishin = pnpm2nix.buildPackage {
-          src = ./.;
+        packages.feishin = pkgs.buildNpmPackage {
           pname = "feishin";
           version = "1.12.0";
+          src = ./.;
 
-          # Use pnpm2nix to handle dependencies
-          # It generates the derivation from pnpm-lock.yaml
+          npmDepsHash = "sha256-4fdlOrYLpO/Q40o8oqu2NGdAdZ9qyGjCt5iDZQXZ7x0=";
+
+          nativeBuildInputs = [
+            pkgs.nodejs_22
+            pkgs.pnpm_9
+          ];
+
+          # Fix: Copy pnpm-lock.yaml to package-lock.json
+          preConfigure = ''
+            cp pnpm-lock.yaml package-lock.json
+          '';
 
           buildPhase = ''
             export HOME=$TMPDIR
-            # pnpm2nix installs dependencies automatically
-            # We just need to build the project
-            pnpm run build:remote
+            npm install --offline --frozen-lockfile
+            npm run build:remote
           '';
 
           installPhase = ''
