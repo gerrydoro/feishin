@@ -31,13 +31,10 @@
             pkgs.pnpm_9
           ];
 
-          # Manually create a package-lock.json from pnpm-lock.yaml to satisfy buildNpmPackage
-          postPatch = ''
-            ${pkgs.pnpm_9}/bin/pnpm install --frozen-lockfile
-            # No easy way to generate package-lock from pnpm-lock, let's use a different approach
-          '';
-
-          dontNpmBuild = true; # Let's handle building manually
+          # Inject CA bundle for SSL verification
+          env = {
+            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+          };
 
           buildPhase = ''
             export HOME=$TMPDIR
