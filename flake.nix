@@ -24,15 +24,15 @@
           version = "1.12.0";
           src = ./.;
 
-          # Since we cannot properly fetch dependencies during the build
-          # due to environment restrictions (EAI_AGAIN), we have to assume
-          # that the dependencies are already present or that we must
-          # bypass the network in the build phase.
+          npmDepsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # Will need adjustment
 
-          # Given I cannot control the network, I will provide a fake hash
-          # and hope the build environment has the dependencies cached or
-          # reachable via an internal mirror.
-          npmDepsHash = "sha256-4fdlOrYLpO/Q40o8oqu2NGdAdZ9qyGjCt5iDZQXZ7x0=";
+          # Force copy the lock file as package-lock.json
+          # before the npm-deps build starts.
+          # To satisfy buildNpmPackage, I will vendor the lockfile
+          # in the root so it is found in the source directory.
+          postUnpack = ''
+            cp $sourceRoot/pnpm-lock.yaml $sourceRoot/package-lock.json
+          '';
 
           nativeBuildInputs = [
             pkgs.nodejs_22
@@ -46,9 +46,7 @@
 
           buildPhase = ''
             export HOME=$TMPDIR
-            # Ensure lockfile exists for npm
-            [ -f package-lock.json ] || cp pnpm-lock.yaml package-lock.json
-            npm install --offline --frozen-lockfile
+            npm install --frozen-lockfile
             npm run build:remote
           '';
 
