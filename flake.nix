@@ -23,7 +23,7 @@
         pnpm2nix = pnpm2nix-nzbr;
       in
       {
-        packages.feishin = pnpm2nix.mkPnpmPackage {
+        packages.feishin = pnpm2nix.packages.${system}.buildPnpmPackage {
           inherit pkgs;
           src = ./.;
 
