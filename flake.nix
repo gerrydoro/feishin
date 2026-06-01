@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    pnpm2nix-nzbr.url = "github:FliegendeWurst/pnpm2nix-nzbr";
   };
 
   outputs =
@@ -11,6 +12,7 @@
       self,
       nixpkgs,
       flake-utils,
+      pnpm2nix-nzbr,
       ...
     }:
     flake-utils.lib.eachDefaultSystem (
@@ -19,38 +21,25 @@
         pkgs = import nixpkgs { inherit system; };
       in
       {
-        packages.feishin = pkgs.buildNpmPackage {
-          pname = "feishin";
-          version = "1.12.0";
+        packages.feishin = pnpm2nix-nzbr.lib.buildPnpmPackage {
+          inherit pkgs;
           src = ./.;
 
-          npmDepsHash = "sha256-4fdlOrYLpO/Q40o8oqu2NGdAdZ9qyGjCt5iDZQXZ7x0=";
-
-          nativeBuildInputs = [
-            pkgs.nodejs_22
-            pkgs.pnpm_9
-          ];
-
-          # Fix: Copy pnpm-lock.yaml to package-lock.json
-          preConfigure = ''
-            cp pnpm-lock.yaml package-lock.json
-          '';
+          # Inject CA bundle for SSL verification
+          env = {
+            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+          };
 
           buildPhase = ''
             export HOME=$TMPDIR
-            npm install --offline --frozen-lockfile
-            npm run build:remote
+            # Build using pnpm as configured by pnpm2nix
+            pnpm run build:remote
           '';
 
           installPhase = ''
             mkdir -p $out/share/feishin
             cp -r out/remote/* $out/share/feishin/
           '';
-
-          # Inject CA bundle for SSL verification
-          env = {
-            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
-          };
         };
       }
     )
