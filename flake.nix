@@ -24,29 +24,32 @@
           version = "1.12.0";
           src = ./.;
 
-          # Explicitly provide a dummy lock file via npmDepsHash/npmConfig
-          # or try to provide the hash.
-          # The error occurs because buildNpmPackage implicitly tries to build
-          # the dependency derivation.
-
-          # To truly fix 'No lock file', we need the lock file to be part of the
-          # source tree before it's hashed.
-
-          npmDepsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # Adjust this
+          npmDepsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # Will need adjustment
 
           nativeBuildInputs = [
             pkgs.nodejs_22
             pkgs.pnpm_9
           ];
 
-          # Inject CA bundle for SSL verification
-          env = {
-            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
-          };
+          # Fix for "No lock file":
+          # Create a package-lock.json as a copy of pnpm-lock.yaml in the source
+          # directory *before* nix attempts to build the npm-deps derivation.
+          # We use postPatch or preConfigure.
+          # Actually, buildNpmPackage tries to read the lockfile at the start
+          # of the npmDeps build process.
+
+          # The trick is to use npmDepsHash = lib.fakeHash to get the error
+          # that gives us the right hash, but it also needs the lockfile.
+
+          # Since I can't put the lock file inside the npmDeps derivation
+          # because it's a separate process, I'll try to build it manually
+          # bypassing npmDepsHash.
+
+          dontNpmBuild = true;
 
           buildPhase = ''
             export HOME=$TMPDIR
-            # Copy the lockfile so that it exists when building
+            # Copy the lockfile so that it exists for npm
             cp pnpm-lock.yaml package-lock.json
             npm install --frozen-lockfile
             npm run build:remote
@@ -56,6 +59,11 @@
             mkdir -p $out/share/feishin
             cp -r out/remote/* $out/share/feishin/
           '';
+
+          # Inject CA bundle for SSL verification
+          env = {
+            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+          };
         };
       }
     )
