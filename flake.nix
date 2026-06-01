@@ -32,10 +32,13 @@
           ];
 
           # Fix for "No lock file" error:
-          # buildNpmPackage looks for package-lock.json in the root.
-          # We must ensure it's there at the start of the build.
-          preConfigure = ''
-            cp pnpm-lock.yaml package-lock.json
+          # buildNpmPackage requires package-lock.json or npm-shrinkwrap.json
+          # We need to make sure one of these exists in the source directory
+          # before the build process starts.
+          # We can create a dummy package-lock.json if needed, but since we have
+          # pnpm-lock.yaml, we will just copy it.
+          postUnpack = ''
+            cp $sourceRoot/pnpm-lock.yaml $sourceRoot/package-lock.json
           '';
 
           # Inject CA bundle for SSL verification
