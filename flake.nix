@@ -19,14 +19,13 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-        # The correct way is to use pkgs.callPackage or pass inputs to the function
-        mkPnpmPackage = pnpm2nix-nzbr.lib.mkPnpmPackage { inherit pkgs; };
+        # The library seems to be the package itself
+        pnpm2nix = pnpm2nix-nzbr;
       in
       {
-        packages.feishin = mkPnpmPackage {
+        packages.feishin = pnpm2nix.mkPnpmPackage {
+          inherit pkgs;
           src = ./.;
-          scriptFull = "pnpm run build:remote";
-          distDir = "out/remote";
 
           # Inject CA bundle for SSL verification
           installEnv = {
@@ -35,6 +34,9 @@
           buildEnv = {
             NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
           };
+
+          scriptFull = "pnpm run build:remote";
+          distDir = "out/remote";
         };
       }
     )
