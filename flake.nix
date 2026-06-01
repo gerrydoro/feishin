@@ -31,15 +31,13 @@
             pkgs.pnpm_9
           ];
 
-          # The issue is that buildNpmPackage expects the lock file
-          # to be present when fetching dependencies, which happens in a separate derivation
-          # We need to make sure the lockfile is copied before it looks for it.
-          # The npmDeps derivation doesn't run postUnpack.
-          # Let's try to copy the lock file as a fix in the root of the source during fetch.
+          # Fix for "No lock file":
+          # Create a package-lock.json since npm needs it even if pnpm is used.
+          preConfigure = ''
+            cp pnpm-lock.yaml package-lock.json
+          '';
 
-          # Let's try using preBuild instead of postUnpack,
-          # and ensure package-lock.json is present.
-
+          # Inject CA bundle for SSL verification
           env = {
             NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
           };
