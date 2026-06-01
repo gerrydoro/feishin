@@ -4,7 +4,6 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    pnpm2nix-nzbr.url = "github:FliegendeWurst/pnpm2nix-nzbr";
   };
 
   outputs =
@@ -12,31 +11,46 @@
       self,
       nixpkgs,
       flake-utils,
-      pnpm2nix-nzbr,
       ...
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-        # The library package seems to contain the function
-        pnpm2nix = pnpm2nix-nzbr.packages.${system};
       in
       {
-        packages.feishin = pnpm2nix.pnpm2nix.mkPnpmPackage {
-          inherit pkgs;
+        packages.feishin = pkgs.buildNpmPackage {
+          pname = "feishin";
+          version = "1.12.0";
           src = ./.;
 
-          # Inject CA bundle for SSL verification
-          installEnv = {
-            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
-          };
-          buildEnv = {
-            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
-          };
+          npmDepsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
-          scriptFull = "pnpm run build:remote";
-          distDir = "out/remote";
+          nativeBuildInputs = [
+            pkgs.nodejs_22
+            pkgs.pnpm_9
+          ];
+
+          # Use pnpm import to generate a package-lock.json from pnpm-lock.yaml
+          preConfigure = ''
+            ${pkgs.pnpm_9}/bin/pnpm import
+          '';
+
+          buildPhase = ''
+            export HOME=$TMPDIR
+            npm install --offline --frozen-lockfile
+            npm run build:remote
+          '';
+
+          installPhase = ''
+            mkdir -p $out/share/feishin
+            cp -r out/remote/* $out/share/feishin/
+          '';
+
+          # Inject CA bundle for SSL verification
+          env = {
+            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+          };
         };
       }
     )
@@ -86,7 +100,7 @@
                     include ${pkgs.nginx}/conf/mime.types;
                     server {
                       listen ${cfg.host}:${toString cfg.port};
-                      root ${self.packages.${pkgs.system}.feishin};
+                      root ${self.packages.${pkgs.system}.feishin}/share/feishin;
                       index index.html;
                       location / {
                         try_files $uri $uri/ /index.html;
