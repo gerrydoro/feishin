@@ -31,17 +31,17 @@
             pkgs.pnpm_9
           ];
 
+          # Fix for "No lock file" error:
+          # buildNpmPackage looks for package-lock.json in the root.
+          # We must ensure it's there at the start of the build.
+          preConfigure = ''
+            cp pnpm-lock.yaml package-lock.json
+          '';
+
           # Inject CA bundle for SSL verification
           env = {
             NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
           };
-
-          # The error states that no lock file was found in the environment used for npm-deps
-          # buildNpmPackage requires package-lock.json or npm-shrinkwrap.json
-          # Copy pnpm-lock.yaml to package-lock.json before the build
-          postPatch = ''
-            cp pnpm-lock.yaml package-lock.json
-          '';
 
           buildPhase = ''
             export HOME=$TMPDIR
