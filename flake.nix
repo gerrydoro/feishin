@@ -19,9 +19,12 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
+        # pnpm2nix-nzbr might not have a .lib attrset
+        # It's likely a function that takes pkgs
+        pnpm2nix = pnpm2nix-nzbr;
       in
       {
-        packages.feishin = pnpm2nix-nzbr.lib.buildPnpmPackage {
+        packages.feishin = pnpm2nix.buildPnpmPackage {
           inherit pkgs;
           src = ./.;
 
