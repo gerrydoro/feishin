@@ -19,40 +19,22 @@
         pkgs = import nixpkgs { inherit system; };
       in
       {
-        packages.feishin = pkgs.buildNpmPackage {
+        packages.feishin = pkgs.stdenv.mkDerivation {
           pname = "feishin";
           version = "1.12.0";
           src = ./.;
-
-          npmDepsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # Will need adjustment
 
           nativeBuildInputs = [
             pkgs.nodejs_22
             pkgs.pnpm_9
           ];
 
-          # Fix for "No lock file":
-          # Create a package-lock.json as a copy of pnpm-lock.yaml in the source
-          # directory *before* nix attempts to build the npm-deps derivation.
-          # We use postPatch or preConfigure.
-          # Actually, buildNpmPackage tries to read the lockfile at the start
-          # of the npmDeps build process.
-
-          # The trick is to use npmDepsHash = lib.fakeHash to get the error
-          # that gives us the right hash, but it also needs the lockfile.
-
-          # Since I can't put the lock file inside the npmDeps derivation
-          # because it's a separate process, I'll try to build it manually
-          # bypassing npmDepsHash.
-
-          dontNpmBuild = true;
-
           buildPhase = ''
             export HOME=$TMPDIR
-            # Copy the lockfile so that it exists for npm
-            cp pnpm-lock.yaml package-lock.json
-            npm install --frozen-lockfile
-            npm run build:remote
+            # Ensure pnpm uses a lockfile that npm (used in some dependencies) might not need
+            # but it has to exist.
+            pnpm install --frozen-lockfile
+            pnpm run build:remote
           '';
 
           installPhase = ''
