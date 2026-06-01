@@ -19,10 +19,9 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-        # Inspect pnpm2nix-nzbr to find the correct builder
       in
       {
-        packages.feishin = pnpm2nix-nzbr.packages.${system}.pnpm2nix.buildPackage {
+        packages.feishin = pnpm2nix-nzbr.packages.${system}.buildPnpmPackage {
           inherit pkgs;
           src = ./.;
 
