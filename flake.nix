@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    pnpm2nix.url = "github:nix-community/pnpm2nix";
   };
 
   outputs =
@@ -11,49 +12,40 @@
       self,
       nixpkgs,
       flake-utils,
+      pnpm2nix,
       ...
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
         pkgs = import nixpkgs { inherit system; };
+        pnpm2nix = import pnpm2nix.inputs.pnpm2nix { inherit pkgs; };
       in
       {
-        packages.feishin = pkgs.buildNpmPackage {
+        packages.feishin = pnpm2nix.buildPackage {
+          src = ./.;
           pname = "feishin";
           version = "1.12.0";
-          src = ./.;
 
-          npmDepsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # Will need adjustment
-
-          # Force copy the lock file as package-lock.json
-          # before the npm-deps build starts.
-          # To satisfy buildNpmPackage, I will vendor the lockfile
-          # in the root so it is found in the source directory.
-          postUnpack = ''
-            cp $sourceRoot/pnpm-lock.yaml $sourceRoot/package-lock.json
-          '';
-
-          nativeBuildInputs = [
-            pkgs.nodejs_22
-            pkgs.pnpm_9
-          ];
-
-          # Inject CA bundle for SSL verification
-          env = {
-            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
-          };
+          # Use pnpm2nix to handle dependencies
+          # It generates the derivation from pnpm-lock.yaml
 
           buildPhase = ''
             export HOME=$TMPDIR
-            npm install --frozen-lockfile
-            npm run build:remote
+            # pnpm2nix installs dependencies automatically
+            # We just need to build the project
+            pnpm run build:remote
           '';
 
           installPhase = ''
             mkdir -p $out/share/feishin
             cp -r out/remote/* $out/share/feishin/
           '';
+
+          # Inject CA bundle for SSL verification
+          env = {
+            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+          };
         };
       }
     )
