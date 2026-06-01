@@ -7,25 +7,18 @@
     pnpm2nix-nzbr.url = "github:FliegendeWurst/pnpm2nix-nzbr";
   };
 
-  outputs =
-    {
-      self,
-      nixpkgs,
-      flake-utils,
-      pnpm2nix-nzbr,
-      ...
-    }:
-    flake-utils.lib.eachDefaultSystem (
-      system:
+  outputs = { self, nixpkgs, flake-utils, pnpm2nix-nzbr, ... }:
+    flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        # The library appears to be directly accessible
+        # Try accessing the package directly if .lib.mkPnpmPackage fails
+        pnpm2nix = pnpm2nix-nzbr.packages.${system};
       in
       {
-        packages.feishin = pnpm2nix-nzbr.lib.mkPnpmPackage {
+        packages.feishin = pnpm2nix.mkPnpmPackage {
           inherit pkgs;
           src = ./.;
-
+          
           # Inject CA bundle for SSL verification
           installEnv = {
             NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
@@ -33,69 +26,62 @@
           buildEnv = {
             NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
           };
-
+          
           scriptFull = "pnpm run build:remote";
           distDir = "out/remote";
         };
-      }
-    )
-    // {
-      nixosModules.default =
-        {
-          config,
-          lib,
-          pkgs,
-          ...
-        }:
-        with lib;
-        let
-          cfg = config.services.feishin;
-        in
-        {
-          options.services.feishin = {
-            enable = mkEnableOption "Feishin music player web interface";
-            host = mkOption {
-              type = types.str;
-              default = "127.0.0.1";
-              description = "Host to listen on";
+      }) // {
+        nixosModules.default = { config, lib, pkgs, ... }:
+          with lib;
+          let
+            cfg = config.services.feishin;
+          in {
+            options.services.feishin = {
+              enable = mkEnableOption "Feishin music player web interface";
+              host = mkOption {
+                type = types.str;
+                default = "127.0.0.1";
+                description = "Host to listen on";
+              };
+              port = mkOption {
+                type = types.port;
+                default = 8080;
+                description = "Port to listen on";
+              };
+              settings = mkOption {
+                type = types.attrsOf types.anything;
+                default = {};
+                description = "Declarative settings for Feishin";
+              };
             };
-            port = mkOption {
-              type = types.port;
-              default = 8080;
-              description = "Port to listen on";
-            };
-            settings = mkOption {
-              type = types.attrsOf types.anything;
-              default = { };
-              description = "Declarative settings for Feishin";
-            };
-          };
 
-          config = mkIf cfg.enable {
-            systemd.services.feishin = {
-              description = "Feishin music player";
-              wantedBy = [ "multi-user.target" ];
-              serviceConfig = {
-                ExecStart = "${pkgs.nginx}/bin/nginx -c ${pkgs.writeText "nginx.conf" ''
-                  daemon off;
-                  error_log /dev/stderr info;
-                  pid /tmp/nginx.pid;
-                  events { worker_connections 1024; }
-                  http {
-                    include ${pkgs.nginx}/conf/mime.types;
-                    server {
-                      listen ${cfg.host}:${toString cfg.port};
-                      root ${self.packages.${pkgs.system}.feishin};
-                      index index.html;
-                      location / {
-                        try_files $uri $uri/ /index.html;
+            config = mkIf cfg.enable {
+              systemd.services.feishin = {
+                description = "Feishin music player";
+                wantedBy = [ "multi-user.target" ];
+                serviceConfig = {
+                  ExecStart = "${pkgs.nginx}/bin/nginx -c ${
+                    pkgs.writeText "nginx.conf" ''
+                      daemon off;
+                      error_log /dev/stderr info;
+                      pid /tmp/nginx.pid;
+                      events { worker_connections 1024; }
+                      http {
+                        include ${pkgs.nginx}/conf/mime.types;
+                        server {
+                          listen ${cfg.host}:${toString cfg.port};
+                          root ${self.packages.${pkgs.system}.feishin};
+                          index index.html;
+                          location / {
+                            try_files $uri $uri/ /index.html;
+                          }
+                        }
                       }
-                    }
-                  }
-                ''}";
+                    ''
+                  }";
+                };
               };
             };
           };
-        };
-    };
+      };
 }
