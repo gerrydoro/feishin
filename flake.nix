@@ -24,39 +24,38 @@
           version = "1.12.0";
           src = ./.;
 
-          npmDepsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # Will need adjustment
+          # Explicitly provide a dummy lock file via npmDepsHash/npmConfig
+          # or try to provide the hash.
+          # The error occurs because buildNpmPackage implicitly tries to build
+          # the dependency derivation.
+
+          # To truly fix 'No lock file', we need the lock file to be part of the
+          # source tree before it's hashed.
+
+          npmDepsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # Adjust this
 
           nativeBuildInputs = [
             pkgs.nodejs_22
             pkgs.pnpm_9
           ];
 
-          # The issue is that buildNpmPackage attempts to build the npm-deps
-          # derivation without access to the source code where pnpm-lock.yaml resides.
-          # To fix, we need to provide the lock file *to* the npmDepsHash derivation
-          # by setting it explicitly in the buildNpmPackage options if supported,
-          # or use a different strategy.
-
-          # Since I can't easily fix the npmDepsHash without the correct hash,
-          # and it fails on 'No lock file', I will bypass the npmDeps derivation
-          # by using simple derivation for build.
+          # Inject CA bundle for SSL verification
+          env = {
+            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+          };
 
           buildPhase = ''
             export HOME=$TMPDIR
-            # Use pnpm from nativeBuildInputs
-            pnpm install --frozen-lockfile
-            pnpm run build:remote
+            # Copy the lockfile so that it exists when building
+            cp pnpm-lock.yaml package-lock.json
+            npm install --frozen-lockfile
+            npm run build:remote
           '';
 
           installPhase = ''
             mkdir -p $out/share/feishin
             cp -r out/remote/* $out/share/feishin/
           '';
-
-          # Inject CA bundle for SSL verification
-          env = {
-            NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
-          };
         };
       }
     )
