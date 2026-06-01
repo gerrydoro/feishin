@@ -19,11 +19,10 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-        # The library seems to be the package itself
-        pnpm2nix = pnpm2nix-nzbr;
+        # The library appears to be directly accessible
       in
       {
-        packages.feishin = pnpm2nix.mkPnpmPackage {
+        packages.feishin = pnpm2nix-nzbr.lib.mkPnpmPackage {
           inherit pkgs;
           src = ./.;
 
