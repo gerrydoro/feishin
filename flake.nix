@@ -2,7 +2,7 @@
   description = "Feishin music player";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -27,13 +27,13 @@
           npmDepsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
           nativeBuildInputs = [
-            pkgs.nodejs_22
-            pkgs.pnpm_9
+            pkgs.nodejs_25
+            pkgs.pnpm
           ];
 
           # Use pnpm import to generate a package-lock.json from pnpm-lock.yaml
           preConfigure = ''
-            ${pkgs.pnpm_9}/bin/pnpm import
+            ${pkgs.pnpm}/bin/pnpm import
           '';
 
           buildPhase = ''

@@ -19,7 +19,7 @@ import {
 } from '/@/shared/types/domain-types';
 
 const getArtistList = (
-    artists?: typeof ssType._response.song._type.artists,
+    artists?: z.infer<typeof ssType._response.song>['artists'],
     artistId?: number | string,
     artistName?: string,
     participants?: null | Record<string, RelatedArtist[]>,
